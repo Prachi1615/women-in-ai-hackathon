@@ -1,2 +1,9 @@
 venv
+<<<<<<< Updated upstream
 .env
+=======
+eenv
+.eenv
+processed
+>>>>>>> Stashed changes
+text
