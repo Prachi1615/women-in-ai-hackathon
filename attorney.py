@@ -6,14 +6,14 @@ import os
 import numpy as np
 import gradio as gr
 from pymilvus import connections, utility, FieldSchema, CollectionSchema, DataType, Collection
-from anthropic import Anthropic
+import ollama
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # ------------ 3. Configuration ------------
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-client = Anthropic(api_key=ANTHROPIC_API_KEY)
+# ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+# client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # ------------ 4. Sample Data (Fallback) ------------
 legal_cases = [
@@ -30,7 +30,15 @@ legal_cases = [
 ]
 
 # ------------ 5. Milvus Setup ------------
-connections.connect(host="localhost", port="19530")
+# Define connection parameters
+pinggy_url = "tcp://rnhmm-68-65-164-205.a.free.pinggy.link:39689"
+
+# Connect to Milvus using HTTP tunnel URL
+connections.connect(
+    alias="default", 
+    uri=pinggy_url
+)
+
 
 # Create collection if not exists
 collection_name = "legal_cases"
@@ -77,15 +85,25 @@ def find_similar_cases(query):
 def generate_summary(query, cases):
     try:
         context = "\n".join([f"- {case['text']} ({case['year']})" for case in cases])
-        response = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=500,
-            messages=[{
-                "role": "user",
-                "content": f"Explain these legal principles simply:\n{context}"
-            }]
+        # response = client.messages.create(
+        #     model="claude-3-haiku-20240307",
+        #     max_tokens=500,
+        #     messages=[{
+        #         "role": "user",
+        #         "content": f"Explain these legal principles simply:\n{context}"
+        #     }]
+        # )
+        response = ollama.chat(
+            model="llama3.2:1b",
+            messages=[  # Correctly formatted as a list of dictionaries
+                {
+                
+                    "role": "user",
+                    "content": f"Explain these legal principles:\n{context}"
+                }
+            ]
         )
-        return response.content[0].text
+        return response
     except Exception as e:
         return f"Summary unavailable: {str(e)}"
 
@@ -101,6 +119,5 @@ gr.Interface(
     fn=legal_assistant,
     inputs=gr.Textbox(label="Legal Query"),
     outputs=gr.Markdown(),
-    title="⚖️ Legal Assistant Prototype",
-    examples=["Can my landlord keep my deposit?", "What are my ADA rights at work?"]
+    title="⚖️ Legal Assistant Prototype"
 ).launch(share=True)
